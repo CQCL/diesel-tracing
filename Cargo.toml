@@ -1,0 +1,18 @@
+[package]
+name = "diesel-tracing"
+version = "0.1.0"
+authors = ["John Children <john@cambridgequantum.com>"]
+license = "MIT"
+edition = "2018"
+description = "Connection telemetry middleware for diesel and tracing"
+repository = "https://github.com/CQCL/diesel-tracing"
+readme = "../README.md"
+keywords = ["diesel", "logging", "tracing", "metrics", "database", "mysql", "postgres", "postgresql", "sqlite", "sql"]
+
+
+[dependencies]
+diesel = { version = "1.4", features = [], default-features = false }
+tracing = "0.1"
+
+[dev-dependencies]
+diesel = { version = "1.4", features = ["mysql", "postgres", "sqlite"] }
