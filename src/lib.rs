@@ -35,7 +35,7 @@ diesel feature flags by default to access the underlying C bindings.
 
 ## Levels
 
-All logged traces are currently set to INFO level, potentially this could be
+All logged traces are currently set to DEBUG level, potentially this could be
 changed to a different default or set to be configured by feature flags. At
 them moment this crate is quite new and it's unclear what a sensible default
 would be.
@@ -50,12 +50,18 @@ automatically logged through the `err` directive in the `instrument` macro.
 As statements may contain sensitive information they are currently not recorded
 explicitly, pending finding a way to filter things intelligently.
 
+Similarly connection strings are not recorded in spans as they may contain
+passwords
+
 ## TODO
 
-[ ] Record and log connection information (filtering out sensitive fields)
-[ ] Provide a way of filtering statements, maybe based on regex?
+- [ ] Record and log connection information (filtering out sensitive fields)
+- [ ] Provide a way of filtering statements, maybe based on regex?
 
 */
+#[macro_use]
+extern crate diesel;
+
 pub mod mysql;
 pub mod pg;
 pub mod sqlite;
