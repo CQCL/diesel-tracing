@@ -21,6 +21,19 @@ encapsulated by the `diesel::Connection` trait, so in those places it is
 likely that you will just need to replace your connection type with the
 Instrumented version.
 
+# Usage
+
+Just like diesel this crate relies on some feature flags to specify which
+database driver to support. Just as in diesel configure this in your
+`Cargo.toml`
+
+```
+[dependencies]
+diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
+```
+
+# Notes
+
 ## Fields
 
 Currently the few fields that are recorded are a subset of the OpenTelemetry
@@ -62,6 +75,9 @@ passwords
 #[macro_use]
 extern crate diesel;
 
+#[cfg(feature = "mysql")]
 pub mod mysql;
+#[cfg(feature = "postgres")]
 pub mod pg;
+#[cfg(feature = "sqlite")]
 pub mod sqlite;

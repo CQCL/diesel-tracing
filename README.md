@@ -22,6 +22,19 @@ encapsulated by the `diesel::Connection` trait, so in those places it is
 likely that you will just need to replace your connection type with the
 Instrumented version.
 
+## Usage
+
+Just like diesel this crate relies on some feature flags to specify which
+database driver to support. Just as in diesel configure this in your
+`Cargo.toml`
+
+```rust
+[dependencies]
+diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
+```
+
+## Notes
+
 ### Fields
 
 Currently the few fields that are recorded are a subset of the OpenTelemetry
