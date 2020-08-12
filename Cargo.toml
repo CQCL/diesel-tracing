@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2018"
 description = "Connection telemetry middleware for diesel and tracing"
 repository = "https://github.com/CQCL/diesel-tracing"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["diesel", "logging", "tracing", "metrics", "database", "mysql", "postgres", "postgresql", "sqlite", "sql"]
 
 
