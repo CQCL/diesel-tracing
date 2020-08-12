@@ -11,7 +11,8 @@ keywords = ["diesel", "logging", "tracing", "metrics", "database", "mysql", "pos
 
 
 [dependencies]
-diesel = { version = "1.4", features = [], default-features = false }
+diesel = { version = "1.4", features = ["network-address"], default-features = false }
+ipnetwork = "0.16.0"
 tracing = "0.1"
 
 [dev-dependencies]
