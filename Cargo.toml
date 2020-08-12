@@ -1,6 +1,6 @@
 [package]
 name = "diesel-tracing"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["John Children <john@cambridgequantum.com>"]
 license = "MIT"
 edition = "2018"
@@ -9,6 +9,12 @@ repository = "https://github.com/CQCL/diesel-tracing"
 readme = "README.md"
 keywords = ["diesel", "logging", "tracing", "database", "opentelemetry"]
 
+[features]
+default = []
+
+mysql = ["diesel/mysql"]
+postgres = ["diesel/postgres"]
+sqlite = ["diesel/sqlite"]
 
 [dependencies]
 diesel = { version = "1.4", features = ["network-address"], default-features = false }
