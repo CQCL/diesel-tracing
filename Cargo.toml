@@ -1,6 +1,6 @@
 [package]
 name = "diesel-tracing"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["John Children <john@cambridgequantum.com>"]
 license = "MIT"
 edition = "2018"

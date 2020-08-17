@@ -6,7 +6,7 @@ use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
 use diesel::sql_types::HasSqlType;
 use diesel::RunQueryDsl;
 use diesel::{no_arg_sql_function, select};
-use tracing::{debug, instrument};
+use tracing::{debug, field, instrument};
 
 // https://www.postgresql.org/docs/12/functions-info.html
 // db.name
@@ -34,12 +34,12 @@ pub struct InstrumentedPgConnection {
 impl SimpleConnection for InstrumentedPgConnection {
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self, query),
         err,
@@ -56,8 +56,12 @@ impl Connection for InstrumentedPgConnection {
 
     #[instrument(
         fields(
+            db.name=field::Empty,
             db.system="postgresql",
+            db.version=field::Empty,
             otel.kind="client",
+            net.peer.ip=field::Empty,
+            net.peer.port=field::Empty,
         ),
         skip(database_url),
         err,
@@ -76,18 +80,24 @@ impl Connection for InstrumentedPgConnection {
         .get_result(&conn)
         .map_err(ConnectionError::CouldntSetupConfiguration)?;
 
+        let span = tracing::Span::current();
+        span.record("db.name", &info.current_database.as_str());
+        span.record("db.version", &info.version.as_str());
+        span.record("db.peer.ip", &format!("{}", info.inet_server_addr).as_str());
+        span.record("db.peer.port", &info.inet_server_port);
+
         Ok(InstrumentedPgConnection { inner: conn, info })
     }
 
     #[doc(hidden)]
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self, query),
         err,
@@ -100,12 +110,12 @@ impl Connection for InstrumentedPgConnection {
     #[doc(hidden)]
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self, source),
         err,
@@ -124,12 +134,12 @@ impl Connection for InstrumentedPgConnection {
     #[doc(hidden)]
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self, source),
         err,
@@ -146,12 +156,12 @@ impl Connection for InstrumentedPgConnection {
     #[doc(hidden)]
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self, source),
         err,
@@ -167,12 +177,12 @@ impl Connection for InstrumentedPgConnection {
     #[doc(hidden)]
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self),
     )]
@@ -185,12 +195,12 @@ impl Connection for InstrumentedPgConnection {
 impl InstrumentedPgConnection {
     #[instrument(
         fields(
-            db.name=?self.info.current_database,
+            db.name=%self.info.current_database,
             db.system="postgresql",
-            db.version=?self.info.version,
+            db.version=%self.info.version,
             otel.kind="client",
-            net.peer.ip=?self.info.inet_server_addr,
-            net.peer.port=?self.info.inet_server_port,
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
         ),
         skip(self),
     )]

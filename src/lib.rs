@@ -27,7 +27,7 @@ Just like diesel this crate relies on some feature flags to specify which
 database driver to support. Just as in diesel configure this in your
 `Cargo.toml`
 
-```
+```toml
 [dependencies]
 diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
 ```
