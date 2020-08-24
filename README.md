@@ -1,3 +1,5 @@
+![Maintenance](https://img.shields.io/badge/maintenance-experimental-blue.svg)
+
 # diesel-tracing
 
 `diesel-tracing` provides connection structures that can be used as drop in
@@ -28,7 +30,7 @@ Just like diesel this crate relies on some feature flags to specify which
 database driver to support. Just as in diesel configure this in your
 `Cargo.toml`
 
-```rust
+```toml
 [dependencies]
 diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
 ```
