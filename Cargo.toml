@@ -9,6 +9,9 @@ repository = "https://github.com/CQCL/diesel-tracing"
 readme = "README.md"
 keywords = ["diesel", "logging", "tracing", "database", "opentelemetry"]
 
+[badges]
+maintenance = { status = "experimental" }
+
 [features]
 default = []
 
