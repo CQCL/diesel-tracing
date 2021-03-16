@@ -1,6 +1,6 @@
 use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
 use diesel::deserialize::{Queryable, QueryableByName};
-use diesel::query_builder::*;
+use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
 use diesel::result::Error;
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::serialize::ToSql;
@@ -15,7 +15,9 @@ pub struct InstrumentedSqliteConnection {
 impl SimpleConnection for InstrumentedSqliteConnection {
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, query), err)]
     fn batch_execute(&self, query: &str) -> QueryResult<()> {
-        self.inner.batch_execute(query)
+        self.inner.batch_execute(query)?;
+
+        Ok(())
     }
 }
 

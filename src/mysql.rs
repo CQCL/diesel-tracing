@@ -1,7 +1,7 @@
 use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
 use diesel::deserialize::{Queryable, QueryableByName};
 use diesel::mysql::{Mysql, MysqlConnection};
-use diesel::query_builder::*;
+use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::sql_types::HasSqlType;
 use tracing::instrument;
@@ -13,7 +13,9 @@ pub struct InstrumentedMysqlConnection {
 impl SimpleConnection for InstrumentedMysqlConnection {
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, query), err)]
     fn batch_execute(&self, query: &str) -> QueryResult<()> {
-        self.inner.batch_execute(query)
+        self.inner.batch_execute(query)?;
+
+        Ok(())
     }
 }
 

@@ -36,7 +36,7 @@ diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"]
 
 ## Fields
 
-Currently the few fields that are recorded are a subset of the OpenTelemetry
+Currently the few fields that are recorded are a subset of the `OpenTelemetry`
 semantic conventions for [databases](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/database.md).
 This was chosen for compatibility with the `tracing-opentelemetry` crate, but
 if it makes sense for other standards to be available this could be set by
@@ -72,6 +72,8 @@ passwords
 - [ ] Provide a way of filtering statements, maybe based on regex?
 
 */
+#![warn(clippy::all, clippy::pedantic)]
+
 #[macro_use]
 extern crate diesel;
 

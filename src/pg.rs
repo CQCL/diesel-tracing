@@ -1,7 +1,7 @@
 use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
 use diesel::deserialize::{Queryable, QueryableByName};
 use diesel::pg::{Pg, PgConnection, TransactionBuilder};
-use diesel::query_builder::*;
+use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
 use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
 use diesel::sql_types::HasSqlType;
 use diesel::RunQueryDsl;
@@ -46,7 +46,9 @@ impl SimpleConnection for InstrumentedPgConnection {
     )]
     fn batch_execute(&self, query: &str) -> QueryResult<()> {
         debug!("executing batch query");
-        self.inner.batch_execute(query)
+        self.inner.batch_execute(query)?;
+
+        Ok(())
     }
 }
 
@@ -83,7 +85,10 @@ impl Connection for InstrumentedPgConnection {
         let span = tracing::Span::current();
         span.record("db.name", &info.current_database.as_str());
         span.record("db.version", &info.version.as_str());
-        span.record("net.peer.ip", &format!("{}", info.inet_server_addr).as_str());
+        span.record(
+            "net.peer.ip",
+            &format!("{}", info.inet_server_addr).as_str(),
+        );
         span.record("net.peer.port", &info.inet_server_port);
 
         Ok(InstrumentedPgConnection { inner: conn, info })
