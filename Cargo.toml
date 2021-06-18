@@ -1,6 +1,6 @@
 [package]
 name = "diesel-tracing"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["John Children <john@cambridgequantum.com>"]
 license = "MIT"
 edition = "2018"
@@ -21,7 +21,7 @@ sqlite = ["diesel/sqlite"]
 
 [dependencies]
 diesel = { version = "1.4", features = ["network-address"], default-features = false }
-ipnetwork = ">=0.12.2, <0.18.0"
+ipnetwork = ">=0.12.2, <0.19.0"
 tracing = "0.1"
 
 [dev-dependencies]
