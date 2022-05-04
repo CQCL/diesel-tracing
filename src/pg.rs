@@ -1,7 +1,10 @@
+use diesel::associations::HasTable;
 use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
 use diesel::deserialize::{Queryable, QueryableByName};
+use diesel::dsl::Update;
 use diesel::pg::{Pg, PgConnection, TransactionBuilder};
-use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
+use diesel::query_builder::{AsChangeset, AsQuery, IntoUpdateTarget, QueryFragment, QueryId};
+use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
 use diesel::sql_types::HasSqlType;
 use diesel::RunQueryDsl;
@@ -212,6 +215,17 @@ impl InstrumentedPgConnection {
     pub fn build_transaction(&self) -> TransactionBuilder {
         debug!("starting transaction builder");
         self.inner.build_transaction()
+    }
+}
+
+impl<Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedPgConnection
+where
+    Changes: Copy + AsChangeset<Target = <Changes as HasTable>::Table> + IntoUpdateTarget,
+    Update<Changes, Changes>: LoadQuery<PgConnection, Output>,
+{
+    fn update_and_fetch(&self, changeset: Changes) -> QueryResult<Output> {
+        debug!("updating and fetching changeset");
+        self.inner.update_and_fetch(changeset)
     }
 }
 
