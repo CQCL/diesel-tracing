@@ -1,15 +1,17 @@
 use diesel::associations::HasTable;
-use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
-use diesel::deserialize::{Queryable, QueryableByName};
+use diesel::connection::{
+    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, LoadConnection,
+    SimpleConnection, TransactionManager,
+};
 use diesel::dsl::{Find, Update};
+use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
 use diesel::mysql::{Mysql, MysqlConnection};
-use diesel::query_builder::{AsChangeset, AsQuery, IntoUpdateTarget, QueryFragment, QueryId};
+use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::result::{ConnectionResult, QueryResult};
-use diesel::sql_types::HasSqlType;
-use diesel::Identifiable;
-use tracing::instrument;
+use diesel::{Identifiable, Table};
+use tracing::{debug, instrument};
 
 pub struct InstrumentedMysqlConnection {
     inner: MysqlConnection,
@@ -17,12 +19,14 @@ pub struct InstrumentedMysqlConnection {
 
 impl SimpleConnection for InstrumentedMysqlConnection {
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, query), err)]
-    fn batch_execute(&self, query: &str) -> QueryResult<()> {
+    fn batch_execute(&mut self, query: &str) -> QueryResult<()> {
         self.inner.batch_execute(query)?;
 
         Ok(())
     }
 }
+
+impl ConnectionSealed for InstrumentedMysqlConnection {}
 
 impl Connection for InstrumentedMysqlConnection {
     type Backend = Mysql;
@@ -35,59 +39,63 @@ impl Connection for InstrumentedMysqlConnection {
         })
     }
 
-    #[doc(hidden)]
-    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, query), err)]
-    fn execute(&self, query: &str) -> QueryResult<usize> {
-        self.inner.execute(query)
-    }
-
-    #[doc(hidden)]
-    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, f))]
+    fn transaction<T, E, F>(&mut self, f: F) -> Result<T, E>
     where
-        T: AsQuery,
-        T::Query: QueryFragment<Mysql> + QueryId,
-        Mysql: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Mysql>,
+        F: FnOnce(&mut Self) -> Result<T, E>,
+        E: From<diesel::result::Error>,
     {
-        self.inner.query_by_index(source)
+        Self::TransactionManager::transaction(self, f)
     }
 
-    #[doc(hidden)]
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Mysql> + QueryId,
-        U: QueryableByName<Mysql>,
-    {
-        self.inner.query_by_name(source)
-    }
-
-    #[doc(hidden)]
-    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
-    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
+    fn execute_returning_count<T>(&mut self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Mysql> + QueryId,
     {
         self.inner.execute_returning_count(source)
     }
 
-    #[doc(hidden)]
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self))]
-    fn transaction_manager(&self) -> &Self::TransactionManager {
-        &self.inner.transaction_manager()
+    fn transaction_state(&mut self) -> &mut Self::TransactionManager {
+        self.inner.transaction_state()
     }
 }
 
-impl<Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedMysqlConnection
+impl LoadConnection<DefaultLoadingMode> for InstrumentedMysqlConnection {
+    type Cursor<'conn, 'query> = <MysqlConnection as LoadConnection<DefaultLoadingMode>>::Cursor<'conn, 'query>
+        where
+            Self: 'conn;
+    type Row<'conn, 'query> = <MysqlConnection as LoadConnection<DefaultLoadingMode>>::Row<'conn, 'query>
+        where
+            Self: 'conn;
+
+    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
+    fn load<'conn, 'query, T>(
+        &'conn mut self,
+        source: T,
+    ) -> QueryResult<Self::Cursor<'conn, 'query>>
+    where
+        T: Query + QueryFragment<Self::Backend> + QueryId + 'query,
+        Self::Backend: QueryMetadata<T::SqlType>,
+    {
+        self.inner.load(source)
+    }
+}
+
+impl<'b, Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedMysqlConnection
 where
     Changes: Copy + Identifiable,
     Changes: AsChangeset<Target = <Changes as HasTable>::Table> + IntoUpdateTarget,
     Changes::Table: FindDsl<Changes::Id>,
     Update<Changes, Changes>: ExecuteDsl<MysqlConnection>,
-    Find<Changes::Table, Changes::Id>: LoadQuery<MysqlConnection, Output>,
+    Find<Changes::Table, Changes::Id>: LoadQuery<'b, MysqlConnection, Output>,
+    <Changes::Table as Table>::AllColumns: ValidGrouping<()>,
+    <<Changes::Table as Table>::AllColumns as ValidGrouping<()>>::IsAggregate:
+        MixedAggregates<is_aggregate::No, Output = is_aggregate::No>,
 {
-    fn update_and_fetch(&self, changeset: Changes) -> QueryResult<Output> {
+    fn update_and_fetch(&mut self, changeset: Changes) -> QueryResult<Output> {
+        debug!("updating and fetching changeset");
         self.inner.update_and_fetch(changeset)
     }
 }

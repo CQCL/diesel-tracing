@@ -1,9 +1,9 @@
 [package]
 name = "diesel-tracing"
-version = "0.1.6"
+version = "0.2.0"
 authors = ["John Children <john@cambridgequantum.com>"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 description = "Connection telemetry middleware for diesel and tracing"
 repository = "https://github.com/CQCL/diesel-tracing"
 readme = "README.md"
@@ -16,13 +16,13 @@ maintenance = { status = "experimental" }
 default = []
 
 mysql = ["diesel/mysql"]
-postgres = ["diesel/postgres"]
+postgres = ["diesel/postgres", "diesel/network-address", "ipnetwork"]
 sqlite = ["diesel/sqlite"]
 
 [dependencies]
-diesel = { version = "1.4", features = ["network-address"], default-features = false }
-ipnetwork = ">=0.12.2, <0.19.0"
+diesel = { version = "2.1", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"], default-features = false }
+ipnetwork = { version = ">=0.12.2, <0.21.0", optional = true }
 tracing = "0.1"
 
 [dev-dependencies]
-diesel = { version = "1.4", features = ["mysql", "postgres", "sqlite"] }
+diesel = { version = "2.0", features = ["mysql", "postgres", "sqlite"] }
