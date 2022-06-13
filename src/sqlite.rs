@@ -1,11 +1,16 @@
+use diesel::associations::HasTable;
 use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
 use diesel::deserialize::{Queryable, QueryableByName};
-use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
+use diesel::dsl::{Find, Update};
+use diesel::query_builder::{AsChangeset, AsQuery, IntoUpdateTarget, QueryFragment, QueryId};
+use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
+use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::result::Error;
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::serialize::ToSql;
 use diesel::sql_types::HasSqlType;
 use diesel::sqlite::{Sqlite, SqliteConnection};
+use diesel::Identifiable;
 use tracing::instrument;
 
 pub struct InstrumentedSqliteConnection {
@@ -110,5 +115,18 @@ impl InstrumentedSqliteConnection {
         Sqlite: HasSqlType<RetSqlType>,
     {
         self.inner.register_sql_function(fn_name, deterministic, f)
+    }
+}
+
+impl<Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedSqliteConnection
+where
+    Changes: Copy + Identifiable,
+    Changes: AsChangeset<Target = <Changes as HasTable>::Table> + IntoUpdateTarget,
+    Changes::Table: FindDsl<Changes::Id>,
+    Update<Changes, Changes>: ExecuteDsl<SqliteConnection>,
+    Find<Changes::Table, Changes::Id>: LoadQuery<SqliteConnection, Output>,
+{
+    fn update_and_fetch(&self, changeset: Changes) -> QueryResult<Output> {
+        self.inner.update_and_fetch(changeset)
     }
 }
