@@ -4,6 +4,10 @@ All changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2022-06-13
+### Changed
+- Implemented UpdateAndFetchResults trait to support save DSL.
+
 ## [0.1.5] - 2021-06-18
 ### Changed
 - Updated ipnetwork bounds to match diesel.
@@ -33,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial implementation.
 
+[0.1.6]: https://crates.io/crates/diesel-tracing/0.1.6
 [0.1.5]: https://crates.io/crates/diesel-tracing/0.1.5
 [0.1.4]: https://crates.io/crates/diesel-tracing/0.1.4
 [0.1.3]: https://crates.io/crates/diesel-tracing/0.1.3
