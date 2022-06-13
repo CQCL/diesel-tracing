@@ -1,17 +1,20 @@
 use diesel::associations::HasTable;
-use diesel::connection::{AnsiTransactionManager, Connection, SimpleConnection};
-use diesel::deserialize::{Queryable, QueryableByName};
+use diesel::connection::{
+    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, LoadConnection,
+    SimpleConnection, TransactionManager,
+};
+use diesel::deserialize::{FromSqlRow, StaticallySizedRow};
 use diesel::dsl::{Find, Update};
-use diesel::query_builder::{AsChangeset, AsQuery, IntoUpdateTarget, QueryFragment, QueryId};
+use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
+use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
-use diesel::result::Error;
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::serialize::ToSql;
 use diesel::sql_types::HasSqlType;
 use diesel::sqlite::{Sqlite, SqliteConnection};
-use diesel::Identifiable;
-use tracing::instrument;
+use diesel::{Identifiable, Table};
+use tracing::{debug, instrument};
 
 pub struct InstrumentedSqliteConnection {
     inner: SqliteConnection,
@@ -19,12 +22,14 @@ pub struct InstrumentedSqliteConnection {
 
 impl SimpleConnection for InstrumentedSqliteConnection {
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, query), err)]
-    fn batch_execute(&self, query: &str) -> QueryResult<()> {
+    fn batch_execute(&mut self, query: &str) -> QueryResult<()> {
         self.inner.batch_execute(query)?;
 
         Ok(())
     }
 }
+
+impl ConnectionSealed for InstrumentedSqliteConnection {}
 
 impl Connection for InstrumentedSqliteConnection {
     type Backend = Sqlite;
@@ -37,65 +42,65 @@ impl Connection for InstrumentedSqliteConnection {
         })
     }
 
-    #[doc(hidden)]
-    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, query), err)]
-    fn execute(&self, query: &str) -> QueryResult<usize> {
-        self.inner.execute(query)
-    }
-
-    #[doc(hidden)]
-    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, source), err)]
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, f))]
+    fn transaction<T, E, F>(&mut self, f: F) -> Result<T, E>
     where
-        T: AsQuery,
-        T::Query: QueryFragment<Sqlite> + QueryId,
-        Sqlite: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Sqlite>,
+        F: FnOnce(&mut Self) -> Result<T, E>,
+        E: From<diesel::result::Error>,
     {
-        self.inner.query_by_index(source)
+        Self::TransactionManager::transaction(self, f)
     }
 
-    #[doc(hidden)]
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, source), err)]
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Sqlite> + QueryId,
-        U: QueryableByName<Sqlite>,
-    {
-        self.inner.query_by_name(source)
-    }
-
-    #[doc(hidden)]
-    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, source), err)]
-    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
+    fn execute_returning_count<T>(&mut self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Sqlite> + QueryId,
     {
         self.inner.execute_returning_count(source)
     }
 
-    #[doc(hidden)]
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self))]
-    fn transaction_manager(&self) -> &Self::TransactionManager {
-        &self.inner.transaction_manager()
+    fn transaction_state(&mut self) -> &mut Self::TransactionManager {
+        self.inner.transaction_state()
+    }
+}
+
+impl LoadConnection<DefaultLoadingMode> for InstrumentedSqliteConnection {
+    type Cursor<'conn, 'query> = <SqliteConnection as LoadConnection<DefaultLoadingMode>>::Cursor<'conn, 'query>
+        where
+            Self: 'conn;
+    type Row<'conn, 'query> = <SqliteConnection as LoadConnection<DefaultLoadingMode>>::Row<'conn, 'query>
+        where
+            Self: 'conn;
+
+    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
+    fn load<'conn, 'query, T>(
+        &'conn mut self,
+        source: T,
+    ) -> QueryResult<Self::Cursor<'conn, 'query>>
+    where
+        T: Query + QueryFragment<Self::Backend> + QueryId + 'query,
+        Self::Backend: QueryMetadata<T::SqlType>,
+    {
+        self.inner.load(source)
     }
 }
 
 impl InstrumentedSqliteConnection {
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, f))]
-    pub fn immediate_transaction<T, E, F>(&self, f: F) -> Result<T, E>
+    pub fn immediate_transaction<T, E, F>(&mut self, f: F) -> Result<T, E>
     where
-        F: FnOnce() -> Result<T, E>,
-        E: From<Error>,
+        F: FnOnce(&mut SqliteConnection) -> Result<T, E>,
+        E: From<diesel::result::Error>,
     {
         self.inner.immediate_transaction(f)
     }
 
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, f))]
-    pub fn exclusive_transaction<T, E, F>(&self, f: F) -> Result<T, E>
+    pub fn exclusive_transaction<T, E, F>(&mut self, f: F) -> Result<T, E>
     where
-        F: FnOnce() -> Result<T, E>,
-        E: From<Error>,
+        F: FnOnce(&mut SqliteConnection) -> Result<T, E>,
+        E: From<diesel::result::Error>,
     {
         self.inner.exclusive_transaction(f)
     }
@@ -103,14 +108,14 @@ impl InstrumentedSqliteConnection {
     #[doc(hidden)]
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, f))]
     pub fn register_sql_function<ArgsSqlType, RetSqlType, Args, Ret, F>(
-        &self,
+        &mut self,
         fn_name: &str,
         deterministic: bool,
         f: F,
     ) -> QueryResult<()>
     where
-        F: FnMut(Args) -> Ret + Send + 'static,
-        Args: Queryable<ArgsSqlType, Sqlite>,
+        F: FnMut(Args) -> Ret + std::panic::UnwindSafe + Send + 'static,
+        Args: FromSqlRow<ArgsSqlType, Sqlite> + StaticallySizedRow<ArgsSqlType, Sqlite>,
         Ret: ToSql<RetSqlType, Sqlite>,
         Sqlite: HasSqlType<RetSqlType>,
     {
@@ -118,15 +123,19 @@ impl InstrumentedSqliteConnection {
     }
 }
 
-impl<Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedSqliteConnection
+impl<'b, Changes, Output> UpdateAndFetchResults<Changes, Output> for InstrumentedSqliteConnection
 where
     Changes: Copy + Identifiable,
     Changes: AsChangeset<Target = <Changes as HasTable>::Table> + IntoUpdateTarget,
     Changes::Table: FindDsl<Changes::Id>,
     Update<Changes, Changes>: ExecuteDsl<SqliteConnection>,
-    Find<Changes::Table, Changes::Id>: LoadQuery<SqliteConnection, Output>,
+    Find<Changes::Table, Changes::Id>: LoadQuery<'b, SqliteConnection, Output>,
+    <Changes::Table as Table>::AllColumns: ValidGrouping<()>,
+    <<Changes::Table as Table>::AllColumns as ValidGrouping<()>>::IsAggregate:
+        MixedAggregates<is_aggregate::No, Output = is_aggregate::No>,
 {
-    fn update_and_fetch(&self, changeset: Changes) -> QueryResult<Output> {
+    fn update_and_fetch(&mut self, changeset: Changes) -> QueryResult<Output> {
+        debug!("updating and fetching changeset");
         self.inner.update_and_fetch(changeset)
     }
 }

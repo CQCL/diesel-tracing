@@ -7,4 +7,6 @@ pkgs.mkShell {
     mysql
     sqlite
   ];
+
+  LD_LIBRARY_PATH = "${pkgs.postgresql.lib}/lib";
 }
