@@ -6,12 +6,13 @@ use diesel::connection::{LoadConnection, TransactionManager};
 use diesel::deserialize::Queryable;
 use diesel::dsl::Update;
 use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
+use diesel::migration::{MigrationConnection, CREATE_MIGRATIONS_TABLE};
 use diesel::pg::{GetPgMetadataCache, Pg, PgConnection, PgRowByRowLoadingMode, TransactionBuilder};
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
-use diesel::RunQueryDsl;
 use diesel::{select, Table};
+use diesel::{sql_query, RunQueryDsl};
 use tracing::{debug, field, instrument};
 
 // https://www.postgresql.org/docs/12/functions-info.html
@@ -218,6 +219,12 @@ impl LoadConnection<PgRowByRowLoadingMode> for InstrumentedPgConnection {
         Self::Backend: QueryMetadata<T::SqlType>,
     {
         <PgConnection as LoadConnection<PgRowByRowLoadingMode>>::load(&mut self.inner, source)
+    }
+}
+
+impl MigrationConnection for InstrumentedPgConnection {
+    fn setup(&mut self) -> QueryResult<usize> {
+        sql_query(CREATE_MIGRATIONS_TABLE).execute(self)
     }
 }
 

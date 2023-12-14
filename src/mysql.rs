@@ -5,12 +5,14 @@ use diesel::connection::{
 };
 use diesel::dsl::{Find, Update};
 use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
+use diesel::migration::{MigrationConnection, CREATE_MIGRATIONS_TABLE};
 use diesel::mysql::{Mysql, MysqlConnection};
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::result::{ConnectionResult, QueryResult};
-use diesel::{Identifiable, Table};
+use diesel::RunQueryDsl;
+use diesel::{sql_query, Identifiable, Table};
 use tracing::{debug, instrument};
 
 pub struct InstrumentedMysqlConnection {
@@ -80,6 +82,12 @@ impl LoadConnection<DefaultLoadingMode> for InstrumentedMysqlConnection {
         Self::Backend: QueryMetadata<T::SqlType>,
     {
         self.inner.load(source)
+    }
+}
+
+impl MigrationConnection for InstrumentedMysqlConnection {
+    fn setup(&mut self) -> QueryResult<usize> {
+        sql_query(CREATE_MIGRATIONS_TABLE).execute(self)
     }
 }
 
