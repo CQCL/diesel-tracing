@@ -75,7 +75,7 @@ impl LoadConnection<DefaultLoadingMode> for InstrumentedSqliteConnection {
         where
             Self: 'conn;
 
-    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, source), err)]
+    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, source), err)]
     fn load<'conn, 'query, T>(
         &'conn mut self,
         source: T,
