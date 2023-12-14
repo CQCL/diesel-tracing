@@ -75,7 +75,29 @@ impl LoadConnection<DefaultLoadingMode> for InstrumentedSqliteConnection {
         where
             Self: 'conn;
 
-    #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, source), err)]
+    #[cfg_attr(
+        feature = "statement-fields",
+        instrument(
+            fields(
+                db.system="sqlite",
+                otel.kind="client",
+                db.statement=%diesel::debug_query(&source),
+            ),
+            skip(self, source),
+            err,
+        )
+    )]
+    #[cfg_attr(
+        not(feature = "statement-fields"),
+        instrument(
+            fields(
+                db.system="sqlite",
+                otel.kind="client",
+            ),
+            skip(self, source),
+            err,
+        )
+    )]
     fn load<'conn, 'query, T>(
         &'conn mut self,
         source: T,

@@ -164,17 +164,36 @@ impl LoadConnection<DefaultLoadingMode> for InstrumentedPgConnection {
             where
                 Self: 'conn;
 
-    #[instrument(
-        fields(
-            db.name=%self.info.current_database,
-            db.system="postgresql",
-            db.version=%self.info.version,
-            otel.kind="client",
-            net.peer.ip=%self.info.inet_server_addr,
-            net.peer.port=%self.info.inet_server_port,
-        ),
-        skip(self, source),
-        err,
+    #[cfg_attr(
+        feature = "statement-fields",
+        instrument(
+            fields(
+                db.name=%self.info.current_database,
+                db.system="postgresql",
+                db.version=%self.info.version,
+                otel.kind="client",
+                net.peer.ip=%self.info.inet_server_addr,
+                net.peer.port=%self.info.inet_server_port,
+                db.statement=%diesel::debug_query(&source),
+            ),
+            skip(self, source),
+            err,
+        )
+    )]
+    #[cfg_attr(
+        not(feature = "statement-fields"),
+        instrument(
+            fields(
+                db.name=%self.info.current_database,
+                db.system="postgresql",
+                db.version=%self.info.version,
+                otel.kind="client",
+                net.peer.ip=%self.info.inet_server_addr,
+                net.peer.port=%self.info.inet_server_port,
+            ),
+            skip(self, source),
+            err,
+        )
     )]
     fn load<'conn, 'query, T>(
         &'conn mut self,

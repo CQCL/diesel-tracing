@@ -15,6 +15,7 @@ maintenance = { status = "experimental" }
 [features]
 default = []
 
+statement-fields = []
 mysql = ["diesel/mysql"]
 postgres = ["diesel/postgres", "diesel/network-address", "ipnetwork"]
 sqlite = ["diesel/sqlite"]
