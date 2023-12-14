@@ -32,7 +32,7 @@ database driver to support. Just as in diesel configure this in your
 
 ```toml
 [dependencies]
-diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
+diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>", "[statement-fields]"] }
 ```
 
 ## Notes
@@ -40,10 +40,15 @@ diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"]
 ### Fields
 
 Currently the few fields that are recorded are a subset of the OpenTelemetry
-semantic conventions for [databases](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/database.md).
+semantic conventions for [databases](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/attributes-registry/db.md).
 This was chosen for compatibility with the `tracing-opentelemetry` crate, but
 if it makes sense for other standards to be available this could be set by
 feature flag later.
+
+Database statements may optionally be recorded by enabling the
+`statement-fields` feature. This uses [`diesel::debug_query`](https://docs.rs/diesel/latest/diesel/fn.debug_query.html)
+to convert the query into a string. As this may expose sensitive information,
+the feature is not enabled by default.
 
 It would be quite useful to be able to parse connection strings to be able
 to provide more information, but this may be difficult if it requires use of
@@ -64,7 +69,9 @@ automatically logged through the `err` directive in the `instrument` macro.
 ### Sensitive Information
 
 As statements may contain sensitive information they are currently not recorded
-explicitly, pending finding a way to filter things intelligently.
+explicitly, unless you opt in by enabling the `statement-fields` feature.
+Finding a way to filter statements intelligently to solve this problem is a
+TODO.
 
 Similarly connection strings are not recorded in spans as they may contain
 passwords
