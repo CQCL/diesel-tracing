@@ -10,6 +10,7 @@ use diesel::mysql::{Mysql, MysqlConnection};
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
+use diesel::r2d2::R2D2Connection;
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::RunQueryDsl;
 use diesel::{sql_query, Identifiable, Table};
@@ -17,6 +18,15 @@ use tracing::{debug, instrument};
 
 pub struct InstrumentedMysqlConnection {
     inner: MysqlConnection,
+}
+
+#[cfg(feature = "r2d2")]
+impl R2D2Connection for InstrumentedMysqlConnection {
+    fn ping(&mut self) -> QueryResult<()> {
+        self.inner.batch_execute("SELECT 1")?;
+
+        Ok(())
+    }
 }
 
 impl SimpleConnection for InstrumentedMysqlConnection {
