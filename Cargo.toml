@@ -19,6 +19,7 @@ statement-fields = []
 mysql = ["diesel/mysql"]
 postgres = ["diesel/postgres", "diesel/network-address", "ipnetwork"]
 sqlite = ["diesel/sqlite"]
+r2d2 = ["diesel/r2d2"]
 
 [dependencies]
 diesel = { version = "2.1", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"], default-features = false }

@@ -10,6 +10,7 @@ use diesel::migration::{MigrationConnection, CREATE_MIGRATIONS_TABLE};
 use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment, QueryId};
 use diesel::query_dsl::methods::{ExecuteDsl, FindDsl};
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
+use diesel::r2d2::R2D2Connection;
 use diesel::result::{ConnectionResult, QueryResult};
 use diesel::serialize::ToSql;
 use diesel::sql_types::HasSqlType;
@@ -20,6 +21,15 @@ use tracing::{debug, instrument};
 
 pub struct InstrumentedSqliteConnection {
     inner: SqliteConnection,
+}
+
+#[cfg(feature = "r2d2")]
+impl R2D2Connection for InstrumentedSqliteConnection {
+    fn ping(&mut self) -> QueryResult<()> {
+        self.inner.batch_execute("SELECT 1")?;
+
+        Ok(())
+    }
 }
 
 impl SimpleConnection for InstrumentedSqliteConnection {
