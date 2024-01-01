@@ -1,6 +1,7 @@
 use diesel::associations::HasTable;
 use diesel::connection::{
-    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, SimpleConnection,
+    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode,
+    MultiConnectionHelper, SimpleConnection,
 };
 use diesel::connection::{LoadConnection, TransactionManager};
 use diesel::deserialize::Queryable;
@@ -45,6 +46,22 @@ impl R2D2Connection for InstrumentedPgConnection {
         self.inner.batch_execute("SELECT 1")?;
 
         Ok(())
+    }
+}
+
+impl MultiConnectionHelper for InstrumentedPgConnection {
+    fn to_any<'a>(
+        lookup: &mut <Self::Backend as diesel::sql_types::TypeMetadata>::MetadataLookup,
+    ) -> &mut (dyn std::any::Any + 'a) {
+        lookup.as_any()
+    }
+
+    fn from_any(
+        lookup: &mut dyn std::any::Any,
+    ) -> Option<&mut <Self::Backend as diesel::sql_types::TypeMetadata>::MetadataLookup> {
+        lookup
+            .downcast_mut::<Self>()
+            .map(|conn| conn as &mut dyn super::PgMetadataLookup)
     }
 }
 
