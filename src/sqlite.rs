@@ -1,7 +1,7 @@
 use diesel::associations::HasTable;
 use diesel::connection::{
     AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, LoadConnection,
-    SimpleConnection, TransactionManager,
+    MultiConnectionHelper, SimpleConnection, TransactionManager,
 };
 use diesel::deserialize::{FromSqlRow, StaticallySizedRow};
 use diesel::dsl::{Find, Update};
@@ -29,6 +29,20 @@ impl R2D2Connection for InstrumentedSqliteConnection {
         self.inner.batch_execute("SELECT 1")?;
 
         Ok(())
+    }
+}
+
+impl MultiConnectionHelper for InstrumentedSqliteConnection {
+    fn to_any<'a>(
+        lookup: &mut <Self::Backend as diesel::sql_types::TypeMetadata>::MetadataLookup,
+    ) -> &mut (dyn std::any::Any + 'a) {
+        lookup
+    }
+
+    fn from_any(
+        lookup: &mut dyn std::any::Any,
+    ) -> Option<&mut <Self::Backend as diesel::sql_types::TypeMetadata>::MetadataLookup> {
+        lookup.downcast_mut()
     }
 }
 
