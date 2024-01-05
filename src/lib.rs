@@ -74,9 +74,6 @@ passwords
 */
 #![warn(clippy::all, clippy::pedantic)]
 
-#[macro_use]
-extern crate diesel;
-
 #[cfg(feature = "mysql")]
 pub mod mysql;
 #[cfg(feature = "postgres")]
