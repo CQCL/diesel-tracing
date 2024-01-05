@@ -1,7 +1,7 @@
 [package]
 name = "diesel-tracing"
-version = "0.2.1"
-authors = ["John Children <john@cambridgequantum.com>"]
+version = "0.2.2"
+authors = ["John Children <john.children@quantinuum.com>"]
 license = "MIT"
 edition = "2021"
 description = "Connection telemetry middleware for diesel and tracing"
