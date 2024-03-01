@@ -61,7 +61,7 @@ impl MultiConnectionHelper for InstrumentedPgConnection {
     ) -> Option<&mut <Self::Backend as diesel::sql_types::TypeMetadata>::MetadataLookup> {
         lookup
             .downcast_mut::<Self>()
-            .map(|conn| conn as &mut dyn super::PgMetadataLookup)
+            .map(|conn| conn as &mut dyn diesel::pg::PgMetadataLookup)
     }
 }
 
