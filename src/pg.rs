@@ -14,7 +14,7 @@ use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::r2d2::R2D2Connection;
 use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
 use diesel::{select, Table};
-use diesel::{sql_query, RunQueryDsl};
+use diesel::{sql_query, sql_function, RunQueryDsl};
 use tracing::{debug, field, instrument};
 
 // https://www.postgresql.org/docs/12/functions-info.html
