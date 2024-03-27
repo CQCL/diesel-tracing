@@ -28,3 +28,7 @@ tracing = "0.1"
 
 [dev-dependencies]
 diesel = { version = "2.0", features = ["mysql", "postgres", "sqlite"] }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+all-features = true
