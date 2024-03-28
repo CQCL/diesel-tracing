@@ -5,8 +5,43 @@
 `diesel-tracing` provides connection structures that can be used as drop in
 replacements for diesel connections with extra tracing and logging.
 
-Usage should be straightforward if you are already using dynamic trait objects
-or impl trait for your connections. For example a function such as:
+## Usage
+
+### Feature flags
+
+Just like diesel this crate relies on some feature flags to specify which
+database driver to support. Just as in diesel configure this in your
+`Cargo.toml`
+
+```toml
+[dependencies]
+diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>"] }
+```
+
+## Establishing a connection
+
+`diesel-tracing` has several instrumented connection structs that wrap the underlying
+`diesel` implementations of the connection. As these structs also implement the
+`diesel::Connection` trait, establishing a connection is done in the same way as
+the `diesel` crate. For example, with the `postgres` feature flag:
+
+```rust
+#[cfg(feature = "postgres")]
+{
+    use diesel_tracing::pg::InstrumentedPgConnection;
+
+    let conn = InstrumentedPgConnection::establish("postgresql://example");
+}
+```
+
+This connection can then be used with diesel dsl methods such as
+`diesel::prelude::RunQueryDsl::execute` or `diesel::prelude::RunQueryDsl::get_results`.
+
+## Code reuse
+
+In some applications it may be desirable to be able to use both instrumented and
+uninstrumented connections. For example, in the tests for a library. To achieve this
+you can use the `diesel::Connection` trait.
 
 ```rust
 fn use_connection(
@@ -24,23 +59,17 @@ encapsulated by the `diesel::Connection` trait, so in those places it is
 likely that you will just need to replace your connection type with the
 Instrumented version.
 
-## Usage
+### Connection Pooling
 
-Just like diesel this crate relies on some feature flags to specify which
-database driver to support. Just as in diesel configure this in your
-`Cargo.toml`
-
-```toml
-[dependencies]
-diesel-tracing = { version = "<version>", features = ["<postgres|mysql|sqlite>", "[statement-fields]"] }
-```
+`diesel-tracing` supports the `r2d2` connection pool, through the `r2d2`
+feature flag. See `diesel::r2d2` for details of usage.
 
 ## Notes
 
 ### Fields
 
-Currently the few fields that are recorded are a subset of the OpenTelemetry
-semantic conventions for [databases](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/attributes-registry/db.md).
+Currently the few fields that are recorded are a subset of the `OpenTelemetry`
+semantic conventions for [databases](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/database.md).
 This was chosen for compatibility with the `tracing-opentelemetry` crate, but
 if it makes sense for other standards to be available this could be set by
 feature flag later.
