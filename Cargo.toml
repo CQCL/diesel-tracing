@@ -22,7 +22,7 @@ sqlite = ["diesel/sqlite"]
 r2d2 = ["diesel/r2d2"]
 
 [dependencies]
-diesel = { version = "2.1", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"], default-features = false }
+diesel = { version = "2.2", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"], default-features = false }
 ipnetwork = { version = ">=0.12.2, <0.21.0", optional = true }
 tracing = "0.1"
 

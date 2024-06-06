@@ -3,7 +3,7 @@ use diesel::connection::{
     AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode,
     MultiConnectionHelper, SimpleConnection,
 };
-use diesel::connection::{LoadConnection, TransactionManager};
+use diesel::connection::{Instrumentation, LoadConnection, TransactionManager};
 use diesel::deserialize::Queryable;
 use diesel::dsl::Update;
 use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
@@ -178,6 +178,36 @@ impl Connection for InstrumentedPgConnection {
     )]
     fn transaction_state(&mut self) -> &mut Self::TransactionManager {
         self.inner.transaction_state()
+    }
+
+    #[instrument(
+        fields(
+            db.name=%self.info.current_database,
+            db.system="postgresql",
+            db.version=%self.info.version,
+            otel.kind="client",
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
+        ),
+        skip(self),
+    )]
+    fn instrumentation(&mut self) -> &mut dyn Instrumentation {
+        self.inner.instrumentation()
+    }
+
+    #[instrument(
+        fields(
+            db.name=%self.info.current_database,
+            db.system="postgresql",
+            db.version=%self.info.version,
+            otel.kind="client",
+            net.peer.ip=%self.info.inet_server_addr,
+            net.peer.port=%self.info.inet_server_port,
+        ),
+        skip(self, instrumentation)
+    )]
+    fn set_instrumentation(&mut self, instrumentation: impl Instrumentation) {
+        self.inner.set_instrumentation(instrumentation)
     }
 }
 
