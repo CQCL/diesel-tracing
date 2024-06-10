@@ -4,6 +4,10 @@ All changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2024-06-10
+### Changed
+- Updated API to support `diesel` 2.2.
+
 ## [0.2.5] - 2024-04-02
 ### Changed
 - Improved crate documentation and synced `README.md` with `lib.rs` using `cargo-readme`.
@@ -85,3 +89,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.3]: https://crates.io/crates/diesel-tracing/0.2.3
 [0.2.4]: https://crates.io/crates/diesel-tracing/0.2.4
 [0.2.5]: https://crates.io/crates/diesel-tracing/0.2.5
+[0.3.0]: https://crates.io/crates/diesel-tracing/0.3.0
