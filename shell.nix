@@ -3,8 +3,9 @@
 pkgs.mkShell {
   name = "diesel-tracing-dev-env";
   buildInputs = with pkgs; [
+    pkg-config
     postgresql
-    mysql
+    libmysqlclient
     sqlite
   ];
 

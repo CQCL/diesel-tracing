@@ -1,7 +1,7 @@
 use diesel::associations::HasTable;
 use diesel::connection::{
-    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, LoadConnection,
-    MultiConnectionHelper, SimpleConnection, TransactionManager,
+    AnsiTransactionManager, Connection, ConnectionSealed, DefaultLoadingMode, Instrumentation,
+    LoadConnection, MultiConnectionHelper, SimpleConnection, TransactionManager,
 };
 use diesel::dsl::{Find, Update};
 use diesel::expression::{is_aggregate, MixedAggregates, QueryMetadata, ValidGrouping};
@@ -85,6 +85,16 @@ impl Connection for InstrumentedMysqlConnection {
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self))]
     fn transaction_state(&mut self) -> &mut Self::TransactionManager {
         self.inner.transaction_state()
+    }
+
+    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self))]
+    fn instrumentation(&mut self) -> &mut dyn Instrumentation {
+        self.inner.instrumentation()
+    }
+
+    #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, instrumentation))]
+    fn set_instrumentation(&mut self, instrumentation: impl Instrumentation) {
+        self.inner.set_instrumentation(instrumentation)
     }
 }
 

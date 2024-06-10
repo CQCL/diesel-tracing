@@ -13,19 +13,19 @@ use diesel::query_builder::{AsChangeset, IntoUpdateTarget, Query, QueryFragment,
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 use diesel::r2d2::R2D2Connection;
 use diesel::result::{ConnectionError, ConnectionResult, QueryResult};
+use diesel::{define_sql_function, sql_query, RunQueryDsl};
 use diesel::{select, Table};
-use diesel::{sql_query, sql_function, RunQueryDsl};
 use tracing::{debug, field, instrument};
 
 // https://www.postgresql.org/docs/12/functions-info.html
 // db.name
-sql_function!(fn current_database() -> diesel::sql_types::Text);
+define_sql_function!(fn current_database() -> diesel::sql_types::Text);
 // net.peer.ip
-sql_function!(fn inet_server_addr() -> diesel::sql_types::Inet);
+define_sql_function!(fn inet_server_addr() -> diesel::sql_types::Inet);
 // net.peer.port
-sql_function!(fn inet_server_port() -> diesel::sql_types::Integer);
+define_sql_function!(fn inet_server_port() -> diesel::sql_types::Integer);
 // db.version
-sql_function!(fn version() -> diesel::sql_types::Text);
+define_sql_function!(fn version() -> diesel::sql_types::Text);
 
 #[derive(Queryable, Clone, Debug, PartialEq)]
 struct PgConnectionInfo {
