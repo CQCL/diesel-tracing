@@ -116,3 +116,228 @@ pub mod mysql;
 pub mod pg;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
+
+use diesel::connection::{Instrumentation, InstrumentationEvent};
+use tracing::{event, Level};
+
+pub struct TracingInstrumentation {
+    include_url: bool,
+}
+
+impl TracingInstrumentation {
+    #[must_use]
+    pub fn new(include_url: bool) -> Self {
+        Self { include_url }
+    }
+}
+
+impl Instrumentation for TracingInstrumentation {
+    fn on_connection_event(&mut self, event: InstrumentationEvent<'_>) {
+        match event {
+            InstrumentationEvent::StartEstablishConnection { url, .. } => {
+                if self.include_url {
+                    event!(name: "StartEstablishConnection", Level::DEBUG, "Started establishing connection with url: `{url}`", url = url);
+                } else {
+                    event!(name: "StartEstablishConnection", Level::DEBUG, "Started establishing connection");
+                }
+            }
+            InstrumentationEvent::FinishEstablishConnection { url, error, .. } => {
+                match (self.include_url, error) {
+                    (true, Some(error)) => {
+                        event!(name: "FinishEstablishConnection", Level::ERROR, "Failed to establish connection for `{url}`, error: {error}", url = url);
+                    }
+                    (true, None) => {
+                        event!(name: "FinishEstablishConnection", Level::DEBUG, "Established connected to `{url}`", url = url);
+                    }
+                    (false, Some(error)) => {
+                        event!(name: "FinishEstablishConnection", Level::ERROR, "Failed to establish connection, error: {error}");
+                    }
+                    (false, None) => {
+                        event!(name: "FinishEstablishConnection", Level::DEBUG, "Established connection");
+                    }
+                }
+            }
+            InstrumentationEvent::StartQuery { query, .. } => {
+                event!(
+                    name: "StartedQuery",
+                    Level::DEBUG,
+                    "Started query: `{query}`",
+                    query = query.to_string()
+                );
+            }
+            InstrumentationEvent::CacheQuery { sql, .. } => {
+                event!(name: "CacheQuery", Level::DEBUG, "Caching query: `{sql}`", sql = sql);
+            }
+            InstrumentationEvent::FinishQuery { query, error, .. } => {
+                if let Some(error) = error {
+                    event!(name: "FinishQuery", Level::ERROR, "Failed to execute query: `{query}`, error: {error}", query = query.to_string());
+                } else {
+                    event!(name: "FinishQuery", Level::DEBUG, "Finished query: `{query}`", query = query.to_string());
+                }
+            }
+            InstrumentationEvent::BeginTransaction { depth, .. } => {
+                event!(name: "BeginTransaction", Level::DEBUG, "Started transaction with depth: {depth}");
+            }
+            InstrumentationEvent::CommitTransaction { depth, .. } => {
+                event!(name: "CommitTransaction", Level::DEBUG, "Commiting transaction with depth: {depth}");
+            }
+            InstrumentationEvent::RollbackTransaction { depth, .. } => {
+                event!(name: "RollbackTransaction", Level::DEBUG, "Rolling back transaction with depth: {depth}");
+            }
+            _ => {
+                event!(name: "<UnknownEvent>", Level::WARN, "Unknown event: {:?}", event);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        error::Error,
+        sync::{Arc, Mutex},
+    };
+
+    use diesel::{connection::set_default_instrumentation, sqlite, Connection, RunQueryDsl};
+    use tracing::{span, Subscriber};
+
+    use crate::TracingInstrumentation;
+
+    // A subscriber that just copies and records events.
+    struct EventRecorder {
+        // Debug formatted events in the order they are recorded.
+        event_debug: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl Subscriber for EventRecorder {
+        fn event(&self, event: &tracing::Event<'_>) {
+            let mut events = self.event_debug.lock().unwrap();
+            events.push(format!("{:?}", event))
+        }
+
+        fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+
+        fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
+            unimplemented!()
+        }
+
+        fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {
+            unimplemented!()
+        }
+
+        fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {
+            unimplemented!()
+        }
+
+        fn enter(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+
+        fn exit(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+    }
+
+    #[test]
+    fn handle_connection_events() -> Result<(), Box<dyn Error>> {
+        let event_debug = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = EventRecorder {
+            event_debug: Arc::clone(&event_debug),
+        };
+
+        set_default_instrumentation(|| Some(Box::new(TracingInstrumentation::new(true)))).unwrap();
+        tracing::subscriber::with_default(subscriber, || {
+            let _conn = sqlite::SqliteConnection::establish(":memory:")?;
+
+            Ok::<(), Box<dyn Error>>(())
+        })?;
+        set_default_instrumentation(|| None).unwrap();
+
+        let events = event_debug.lock().unwrap();
+        assert_eq!(events.len(), 2);
+        assert!(events[0].contains("message: Started establishing connection with url: `:memory:`"));
+        assert!(events[0].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[1].contains("message: Established connected to `:memory:`"));
+        assert!(events[1].contains("module_path: \"diesel_tracing\""));
+
+        Ok(())
+    }
+
+    #[test]
+    fn handle_simple_queries_events() -> Result<(), Box<dyn Error>> {
+        let event_debug = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = EventRecorder {
+            event_debug: Arc::clone(&event_debug),
+        };
+        let mut conn = sqlite::SqliteConnection::establish(":memory:")?;
+        conn.set_instrumentation(TracingInstrumentation::new(true));
+
+        tracing::subscriber::with_default(subscriber, || {
+            let query = diesel::sql_query("SELECT 1");
+            query.execute(&mut conn)?;
+
+            Ok::<(), Box<dyn Error>>(())
+        })?;
+
+        let events = event_debug.lock().unwrap();
+        assert_eq!(events.len(), 2);
+        dbg!(&events);
+        assert!(events[0].contains("message: Started query: `SELECT 1 -- binds: []`"));
+        assert!(events[0].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[1].contains("message: Finished query: `SELECT 1 -- binds: []`"));
+        assert!(events[1].contains("module_path: \"diesel_tracing\""));
+
+        Ok(())
+    }
+
+    #[test]
+    fn handle_transactions() -> Result<(), Box<dyn Error>> {
+        let event_debug = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = EventRecorder {
+            event_debug: Arc::clone(&event_debug),
+        };
+        let mut conn = sqlite::SqliteConnection::establish(":memory:")?;
+        conn.set_instrumentation(TracingInstrumentation::new(true));
+
+        tracing::subscriber::with_default(subscriber, || {
+            conn.transaction(|conn| {
+                let query = diesel::sql_query("SELECT 1");
+                query.execute(conn)?;
+
+                Ok::<(), Box<dyn Error>>(())
+            })
+        })?;
+
+        let events = event_debug.lock().unwrap();
+        assert_eq!(events.len(), 8);
+        dbg!(&events);
+        assert!(events[0].contains("message: Started transaction with depth: 1"));
+        assert!(events[0].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[1].contains("message: Started query: `BEGIN`"));
+        assert!(events[1].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[2].contains("message: Finished query: `BEGIN`"));
+        assert!(events[2].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[3].contains("message: Started query: `SELECT 1 -- binds: []`"));
+        assert!(events[3].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[4].contains("message: Finished query: `SELECT 1 -- binds: []`"));
+        assert!(events[4].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[5].contains("message: Commiting transaction with depth: 1"));
+        assert!(events[5].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[6].contains("message: Started query: `COMMIT`"));
+        assert!(events[6].contains("module_path: \"diesel_tracing\""));
+
+        assert!(events[7].contains("message: Finished query: `COMMIT`"));
+        assert!(events[7].contains("module_path: \"diesel_tracing\""));
+        Ok(())
+    }
+}

@@ -97,7 +97,7 @@ impl Connection for InstrumentedSqliteConnection {
 
     #[instrument(fields(db.system="sqlite", otel.kind="client"), skip(self, instrumentation))]
     fn set_instrumentation(&mut self, instrumentation: impl Instrumentation) {
-        self.inner.set_instrumentation(instrumentation)
+        self.inner.set_instrumentation(instrumentation);
     }
 }
 

@@ -27,7 +27,7 @@ ipnetwork = { version = ">=0.12.2, <0.21.0", optional = true }
 tracing = "0.1"
 
 [dev-dependencies]
-diesel = { version = "2.0", features = ["mysql", "postgres", "sqlite"] }
+diesel = { version = "2.2", features = ["mysql", "postgres", "sqlite"] }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
