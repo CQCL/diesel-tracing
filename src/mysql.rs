@@ -94,7 +94,7 @@ impl Connection for InstrumentedMysqlConnection {
 
     #[instrument(fields(db.system="mysql", otel.kind="client"), skip(self, instrumentation))]
     fn set_instrumentation(&mut self, instrumentation: impl Instrumentation) {
-        self.inner.set_instrumentation(instrumentation)
+        self.inner.set_instrumentation(instrumentation);
     }
 }
 

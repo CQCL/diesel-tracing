@@ -9,5 +9,5 @@ pkgs.mkShell {
     sqlite
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.postgresql.lib}/lib";
+  LD_LIBRARY_PATH = "${pkgs.postgresql.lib}/lib:${pkgs.libmysqlclient.out}/lib/mariadb:${pkgs.sqlite.out}/lib";
 }
